@@ -8,6 +8,7 @@ declare module 'knex/types/tables' {
       fullname: string
       mail: string
       password: string
+      session_id?: string
     }
   }
 }

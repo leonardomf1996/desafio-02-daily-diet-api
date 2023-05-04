@@ -7,6 +7,7 @@ export async function up(knex: Knex): Promise<void> {
     table.text('mail').notNullable()
     table.text('password').notNullable()
     table.timestamp('created_at').defaultTo(knex.fn.now()).notNullable()
+    table.uuid('session_id').after('id').index()
   })
 }
 
