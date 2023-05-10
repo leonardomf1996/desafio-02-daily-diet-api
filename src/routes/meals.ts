@@ -241,4 +241,75 @@ export async function mealsRoutes(app: FastifyInstance) {
       return { meal }
     },
   )
+
+  app.get(
+    '/metrics',
+    {
+      preHandler: [checkSessionIdExists],
+    },
+    async (request, reply) => {
+      const { sessionId } = request.cookies
+
+      if (!sessionId) {
+        throw new Error('Unauthorized user')
+      }
+
+      const user = await knex('users').select('*').where({
+        session_id: sessionId,
+      })
+
+      const userId = user[0].id
+
+      if (!userId) {
+        throw new Error('User not found')
+      }
+
+      const findMeals = await knex('meals').select('*').where('user_id', userId)
+
+      if (!findMeals) {
+        throw new Error('Meals not found')
+      }
+
+      const meals = findMeals.map((meal) => {
+        const ingested = new Date(meal.ingested_at)
+
+        return {
+          ...meal,
+          ingested_at: ingested,
+        }
+      })
+
+      let countSequence = 0
+      let finalCountSequence = 0
+
+      meals.forEach((meal) => {
+        if (meal.inside_diet_plan === 1) {
+          countSequence++
+        } else {
+          if (countSequence > finalCountSequence) {
+            finalCountSequence = countSequence
+            countSequence = 0
+          }
+        }
+        finalCountSequence = countSequence
+      })
+
+      const mealsInsideDiet = meals.filter(
+        (meal) => meal.inside_diet_plan === 1,
+      )
+
+      const mealsOutsideDiet = meals.filter(
+        (meal) => meal.inside_diet_plan === 0,
+      )
+
+      const metrics = {
+        total_meals: meals.length,
+        meals_inside_diet: mealsInsideDiet.length,
+        meals_outside_diet: mealsOutsideDiet.length,
+        best_sequence_meals_inside_diet: finalCountSequence,
+      }
+
+      return { metrics }
+    },
+  )
 }
